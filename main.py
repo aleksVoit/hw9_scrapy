@@ -6,6 +6,9 @@ from scrapy.crawler import CrawlerProcess
 from pathlib import Path
 import json
 
+from connect import connect
+from models import Author, Quote
+
 
 def save_item(data_to_save: dict, file_path: Path):
     if not file_path.is_file():
@@ -21,6 +24,27 @@ def save_item(data_to_save: dict, file_path: Path):
 
     with open(file_path, 'w') as file:
         json.dump(existing_json_file, file, indent=4, ensure_ascii=False)
+
+
+def send_quote_to_db(quote: dict):
+    tags = quote['tags']
+    author = quote['author']
+    a_quote = quote['quote']
+
+    all_quotes = Quote.objects().all()
+    if a_quote not in [db_quote.quote for db_quote in all_quotes]:
+        Quote(tags=tags, author=author, quote=a_quote).save()
+
+
+def send_author_to_db(author: dict):
+    fullname = author['fullname']
+    born_date = author['born_date']
+    born_location = author['born_location']
+    description = author['description']
+
+    all_authors = Author.objects().all()
+    if fullname not in [db_author.fullname for db_author in all_authors]:
+        Author(fullname=fullname, born_date=born_date, born_location=born_location, description=description).save()
 
 
 class QuotesSpider(scrapy.Spider):
@@ -42,7 +66,8 @@ class QuotesSpider(scrapy.Spider):
             a_quote = quote.xpath("span[@class='text']/text()").get()
 
             quote_item = {'tags': tags, 'author': author, 'quote': a_quote}
-            yield save_item(quote_item, quotes_path)
+            send_quote_to_db(quote_item)
+            save_item(quote_item, quotes_path)
 
             author_link = self.start_urls[0] + quote.xpath("span/a/@href").get()
             yield scrapy.Request(url=author_link, callback=self.parse_authors)
@@ -59,13 +84,14 @@ class QuotesSpider(scrapy.Spider):
         born_location = response.xpath("/html//span[@class='author-born-location']/text()").get()
         description = response.xpath("/html//div[@class='author-description']/text()").get()[9:]
 
-        authot_item = {
+        author_item = {
             'fullname': fullname,
             'born_date': born_date,
-            'born_l0cation': born_location,
+            'born_location': born_location,
             'description': description
         }
-        save_item(authot_item, authors_path)
+        save_item(author_item, authors_path)
+        send_author_to_db(author_item)
 
 
 # run spider
