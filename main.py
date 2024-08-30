@@ -61,16 +61,18 @@ class QuotesSpider(scrapy.Spider):
     def parse(self, response):
         quotes_path = Path('quotes.json')
         for quote in response.xpath("/html//div[@class='quote']"):
+            author_link = self.start_urls[0] + quote.xpath("span/a/@href").get()
+            scrapy.Request(url=author_link, callback=self.parse_authors)
+
             tags = quote.xpath("div[@class='tags']/a/text()").extract()
-            author = quote.xpath("span/small[@itemprop='author']/text()").get()
+            authors_name = quote.xpath("span/small[@itemprop='author']/text()").get()
+            author = Author.objects(fullname=authors_name).first()
+            print(author, '<---->')
             a_quote = quote.xpath("span[@class='text']/text()").get()
 
-            quote_item = {'tags': tags, 'author': author, 'quote': a_quote}
+            quote_item = {'tags': tags, 'author': author.id, 'quote': a_quote}
             send_quote_to_db(quote_item)
             save_item(quote_item, quotes_path)
-
-            author_link = self.start_urls[0] + quote.xpath("span/a/@href").get()
-            yield scrapy.Request(url=author_link, callback=self.parse_authors)
 
         next_link = response.xpath("//li[@class='next']/a/@href").get()
         if next_link:

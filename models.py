@@ -3,7 +3,7 @@ from mongoengine.fields import ListField, StringField, ReferenceField
 
 
 class Author(Document):
-    fullname = StringField()
+    fullname = StringField(required=True, unique=True)
     born_date = StringField()
     born_location = StringField()
     description = StringField()
@@ -12,5 +12,5 @@ class Author(Document):
 class Quote(Document):
     tags = ListField()
     author = ReferenceField(Author)
-    quote = StringField()
+    quote = StringField(required=True, unique=True)
 
